@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secret Santa</title>
+</head>
+<body>
+
+<h1>Secret Santa</h1>
+
+<div id="setup">
+  <p>Enter one name per line. Then send each person their own link. Don't open other people's links!</p>
+  <textarea id="names" rows="10" cols="30" placeholder="Bradley&#10;Caitlin&#10;Name 3"></textarea>
+  <br><br>
+  <button id="generateButton">Generate links</button>
+  <p id="error" style="color:red"></p>
+  <div id="results"></div>
+</div>
+
+<div id="reveal" style="display:none">
+  <p>Hi <b id="giver"></b>!</p>
+  <button id="showButton">Click to see who you got</button>
+  <p id="result" style="display:none">You are Secret Santa for: <b id="receiver" style="font-size:1.5em"></b></p>
+</div>
+
+<script>
+
+function encodePair(pair)
+{
+  var text = JSON.stringify(pair);
+  return btoa(encodeURIComponent(text));
+}
+
+function decodePair(code)
+{
+  var text = decodeURIComponent(atob(code));
+  return JSON.parse(text);
+}
+
+function shuffleNames(list)
+{
+  for (var i = list.length - 1; i > 0; i--)
+  {
+    var randomIndex = Math.floor(Math.random() * (i + 1));
+    var temp = list[i];
+    list[i] = list[randomIndex];
+    list[randomIndex] = temp;
+  }
+  return list;
+}
+
+function makePairs(names)
+{
+  var shuffled = shuffleNames(names.slice());
+  var pairs = [];
+
+  for (var i = 0; i < shuffled.length; i++)
+  {
+    var nextIndex = (i + 1) % shuffled.length;
+    pairs.push({ from: shuffled[i], to: shuffled[nextIndex] });
+  }
+
+  return pairs;
+}
+
+function getNames()
+{
+  var text = document.getElementById("names").value;
+  var lines = text.split("\n");
+  var names = [];
+
+  for (var i = 0; i < lines.length; i++)
+  {
+    var name = lines[i].trim();
+    if (name !== "")
+    {
+      names.push(name);
+    }
+  }
+
+  return names;
+}
+
+function hasDuplicates(names)
+{
+  for (var i = 0; i < names.length; i++)
+  {
+    for (var j = i + 1; j < names.length; j++)
+    {
+      if (names[i].toLowerCase() === names[j].toLowerCase())
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function addLinkRow(pair)
+{
+  var baseUrl = location.href.split("#")[0];
+  var link = baseUrl + "#" + encodePair(pair);
+
+  var row = document.createElement("p");
+
+  var label = document.createElement("b");
+  label.textContent = pair.from + ": ";
+
+  var linkBox = document.createElement("input");
+  linkBox.value = link;
+  linkBox.size = 30;
+  linkBox.readOnly = true;
+
+  var copyButton = document.createElement("button");
+  copyButton.textContent = "Copy";
+  copyButton.onclick = function ()
+  {
+    linkBox.select();
+    navigator.clipboard.writeText(link);
+    copyButton.textContent = "Copied";
+  };
+
+  row.appendChild(label);
+  row.appendChild(linkBox);
+  row.appendChild(document.createTextNode(" "));
+  row.appendChild(copyButton);
+
+  document.getElementById("results").appendChild(row);
+}
+
+function generateLinks()
+{
+  var errorBox = document.getElementById("error");
+  var results = document.getElementById("results");
+  errorBox.textContent = "";
+  results.innerHTML = "";
+
+  var names = getNames();
+
+  if (names.length < 3)
+  {
+    errorBox.textContent = "Need at least 3 names.";
+    return;
+  }
+
+  if (hasDuplicates(names))
+  {
+    errorBox.textContent = "Names must be different from each other.";
+    return;
+  }
+
+  var pairs = makePairs(names);
+
+  pairs.sort(function (a, b)
+  {
+    return a.from.localeCompare(b.from);
+  });
+
+  results.innerHTML = "<h3>Links to send</h3>";
+
+  for (var i = 0; i < pairs.length; i++)
+  {
+    addLinkRow(pairs[i]);
+  }
+}
+
+function showResult()
+{
+  document.getElementById("showButton").style.display = "none";
+  document.getElementById("result").style.display = "block";
+}
+
+function showRevealPage(pair)
+{
+  document.getElementById("setup").style.display = "none";
+  document.getElementById("reveal").style.display = "block";
+  document.getElementById("giver").textContent = pair.from;
+  document.getElementById("receiver").textContent = pair.to;
+}
+
+function startPage()
+{
+  document.getElementById("generateButton").onclick = generateLinks;
+  document.getElementById("showButton").onclick = showResult;
+
+  if (location.hash.length > 1)
+  {
+    try
+    {
+      var pair = decodePair(location.hash.slice(1));
+      showRevealPage(pair);
+    }
+    catch (error)
+    {
+      document.getElementById("error").textContent = "That link looks broken.";
+    }
+  }
+}
+
+startPage();
+
+</script>
+
+</body>
+</html>
